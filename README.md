@@ -45,6 +45,20 @@ Errors are relative to the lid velocity $U = 1$, i.e. below 1.5 % everywhere.
 
 ![Validation against Ghia et al.](cavity_flow/graphs/validation_ghia_Re100.png)
 
+## Numerical fluxes — `advection_diffusion_2d`
+
+All fluxes share the form $F_{i+1/2} = \frac{1}{2}(f_L + f_R) - \frac{\alpha}{2}(u_R - u_L)$, with a different numerical dissipation $\alpha$:
+
+| Scheme | $\alpha$ (x direction) | Notes |
+|---|---|---|
+| Rusanov | $\lvert a \rvert$ | for a linear flux it is first-order upwind |
+| Central | $0$ | no numerical dissipation; stable here because the cell Péclet number $a\Delta x/\nu \approx 0.5 < 2$ |
+| Lax–Wendroff | $a^2 \Delta t / \Delta x$ | second order, applied dimension by dimension |
+
+Gaussian pulse at $t = 0.6$: the peak is 0.26 with Rusanov, 0.29 with Lax–Wendroff and 0.30 with the central flux, showing the extra numerical diffusion of the upwind flux.
+
+Lax–Friedrichs ($\alpha = \Delta x / \Delta t$), used in the 1D codes, is not included in 2D: its numerical viscosity $\Delta x^2 / (2\Delta t)$ per direction exceeds the stability limit of explicit diffusion in 2D, and even the 2D variant with half the dissipation (average of the 4 neighbours) only reaches it. Adding the physical viscosity $\nu$ then makes the odd–even (checkerboard) mode grow and the solution blows up.
+
 ## Convergence study
 
 The numerical solution is compared with an exact solution on successively refined grids; the observed order is $p = \log(e_{coarse}/e_{fine}) / \log(h_{coarse}/h_{fine})$.
