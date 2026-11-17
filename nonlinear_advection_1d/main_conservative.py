@@ -1,9 +1,9 @@
 from matplotlib.animation import FuncAnimation
-import scipy as sp
 import numpy as np
 import matplotlib.pyplot as plt
 
-# u_t + (u^2/2)_x = 0
+# Inviscid Burgers equation in conservative form: u_t + (u^2/2)_x = 0
+# Upwind flux difference, valid because u >= 0 everywhere (information travels to the right)
 
 def get_space_params():
     L = 1.0
@@ -30,30 +30,29 @@ def get_time_params(u_max, dx):
         "T": T,
         "dt": dt,
         "nt": nt,
-        "nt": nt, 
     }
-    
+
 def make_grid(L, nx):
-    return np.linspace(0, L, nx);
+    return np.linspace(0, L, nx)
 
 def apply_bc(u, t):
     u[0] = 0
-    return u;
+    return u
 
 def init_cond(x, t):
     u = np.zeros(len(x))
     u[x < 0.5] = 1.0
     u[x >= 0.5] = 0.0
-    return u;
+    return u
 
 def flux(u):
-    return 0.5 * u**2;
+    return 0.5 * u**2
 
 def scheme(u, dx, dt):
     u_new = u.copy()
     u_new[1:] = u[1:] - dt / dx * (flux(u[1:]) - flux(u[:-1]))
 
-    return u_new;
+    return u_new
 
 
 def solver(u, nt, dt, dx):
@@ -68,7 +67,7 @@ def solver(u, nt, dt, dx):
         u_new = scheme(u_new, dx, dt)
 
         history.append(u_new.copy())
-        
+
         u = u_new
 
     return np.array(history)
@@ -101,7 +100,7 @@ def animate_solution(x, history, dt, n_frames=300):
 
     plt.show()
 
-    
+
 if __name__ == "__main__":
     p_space = get_space_params()
 

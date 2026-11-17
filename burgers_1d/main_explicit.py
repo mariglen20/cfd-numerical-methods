@@ -1,9 +1,8 @@
 from matplotlib import pyplot as plt
-import scipy as sp
 import numpy as np
 from matplotlib.animation import FuncAnimation
 
-# Solving PDE: u_t + (u**2 / 2)_x = nu * u_xx
+# Viscous Burgers equation: u_t + (u^2 / 2)_x = nu * u_xx
 
 # Space related parameters (divided from time params for better control)
 def get_space_params():
@@ -16,8 +15,8 @@ def get_space_params():
     }
 
 def get_dt(CFL, u_max, dx, nu):
-    dt = CFL * 1 / ( u_max / dx + 2 * nu / dx**2)       # adaptive dt^n for explicit scheme
-    return dt;
+    dt = CFL / (u_max / dx + 2 * nu / dx**2)           # adaptive dt^n: convective + diffusive stability limit
+    return dt
 
 def get_time_params():
     T = 10
@@ -28,27 +27,27 @@ def get_time_params():
 
 # Initializing grid
 def make_grid(L, nx):
-    return np.linspace(0, L, nx);
+    return np.linspace(0, L, nx)
 
-# Applying BC 
-def apply_bc(u, t, dx):
-    u[0] = 1 + np.sin(t)                            # Dirichlet BC on left extremity 
+# Applying BC
+def apply_bc(u, t):
+    u[0] = 1 + np.sin(t)                            # Dirichlet BC on left extremity
     u[-1] = u[-2]                                   # Neumann BC on right extremity
-    return u;
+    return u
 
 # Determining IC
-def init_cond(x, dx):
+def init_cond(x):
     u = np.zeros(len(x))
-    u[1:-1] += 1                                # Onda quadra unitaria
-    u = apply_bc(u, 0, dx)                      # Compatibility with BC 
-    return u;
+    u[1:-1] += 1                                # unit square wave
+    u = apply_bc(u, 0)                          # compatibility with BC
+    return u
 
 # Defining physical flux
 def flux(u):
-    return 0.5 * u**2;
+    return 0.5 * u**2
 
 # Defining numerical flux and various conservative schemes
-def numerical_flux(uR, uL, dx, dt, scheme = "rusanov"):
+def numerical_flux(uL, uR, dx, dt, scheme = "rusanov"):
     fR = flux(uR)
     fL = flux(uL)
 
@@ -63,20 +62,20 @@ def numerical_flux(uR, uL, dx, dt, scheme = "rusanov"):
         raise ValueError(f"Unknown scheme: {scheme}")
 
     F = 0.5 * ( (fL + fR) - alpha * (uR - uL) )
-    return F;
+    return F
 
 # Definition of the explicit scheme used at the n step
 def explicit_scheme(u, dt, dx, nu, scheme = "rusanov"):
-    F = numerical_flux(u[1:], u[:-1], dx, dt, scheme)
+    F = numerical_flux(u[:-1], u[1:], dx, dt, scheme)          # F_(i+1/2) for i = 0 ... nx-2
 
     u_new = u.copy()
     u_new[1:-1] = u[1:-1] - dt / dx * (F[1:] - F[:-1]) + nu * dt / dx**2 * (u[2:] - 2 * u[1:-1] + u[:-2])
 
-    return u_new;
-    
+    return u_new
+
 def solver(u, T, dx, nu, scheme, CFL):
     history = [u.copy()]
-    times = [0.0]                               # Get real time 
+    times = [0.0]                               # Get real time
     t = 0
 
     print(f"Scheme: {scheme}")
@@ -86,10 +85,10 @@ def solver(u, T, dx, nu, scheme, CFL):
 
         dt = get_dt(CFL, u_max, dx, nu)         # Getting the time step at the n iteration
         dt = min(dt, T - t)                     # Avoiding time overshoot
-        t += dt                                 # Increasing physical time 
+        t += dt                                 # Increasing physical time
 
-        u = explicit_scheme(u, dt, dx, nu, scheme)      # Solving for the current step 
-        u = apply_bc(u, t, dx)                          # Then applying the BC 
+        u = explicit_scheme(u, dt, dx, nu, scheme)      # Solving for the current step
+        u = apply_bc(u, t)                              # Then applying the BC
 
         history.append(u.copy())
         times.append(t)
@@ -131,7 +130,7 @@ if __name__ == "__main__":
 
     x = make_grid(p_space["L"], p_space["nx"])
 
-    u0 = init_cond(x, p_space["dx"])
+    u0 = init_cond(x)
 
     history, times = solver(u0, p_time["T"], p_space["dx"], p_space["nu"], "lax_wendroff", p_time["CFL"])
 

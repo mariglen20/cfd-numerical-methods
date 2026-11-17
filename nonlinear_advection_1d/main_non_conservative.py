@@ -1,7 +1,9 @@
-import scipy as sp
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
+
+# Inviscid Burgers equation in non-conservative form: u_t + u * u_x = 0
+# First order upwind (u >= 0). This form gives wrong shock speeds, see main_conservative.py
 
 def get_space_params():
     L = 1.0
@@ -14,8 +16,8 @@ def get_space_params():
         "dx": dx
     }
 
-# CFL = sigma depends on u_max that is obtained from CI so get_params needs to be called
-# after initializing u(x, 0) IC
+# CFL = sigma depends on u_max, which is obtained from the IC, so get_time_params needs to be called
+# after initializing u(x, 0)
 def get_time_params(u_max, dx):
     sigma = 0.5
     T = 10.0
@@ -37,18 +39,17 @@ def get_grid(L, nx):
 
 def apply_bc(u, t):
     u[0] = np.abs(np.sin(t))
-    return u;
+    return u
 
 def init_cond(x, t):
-    u = np.zeros(len(x))
     u = np.cos(x)
     u = apply_bc(u, t)
-    return u;
+    return u
 
 def explicit(u, dt, dx):
     u_new = u.copy()
     u_new[1:] = u[1:] - dt / dx * u[1:] * (u[1:] - u[:-1])
-    return u_new;
+    return u_new
 
 def solver(u, nt, dt, dx):
     history = [u.copy()]
@@ -62,7 +63,7 @@ def solver(u, nt, dt, dx):
         history.append(u_new.copy())
 
         u = u_new
-        
+
     return np.array(history)
 
 
@@ -100,7 +101,7 @@ if __name__ == "__main__":
 
     x = get_grid(p_space["L"], p_space["nx"])
     u0 = init_cond(x, 0)
-    
+
     p_time = get_time_params(np.max(abs(u0)), p_space["dx"])
 
     history = solver(u0, p_time["nt"], p_time["dt"], p_space["dx"])

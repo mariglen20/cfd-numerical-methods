@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg as linalg
 
+# 1D heat equation: u_t = alpha * u_xx, implicit Euler (unconditionally stable)
+# Tridiagonal system solved at each step with a banded solver
+
 def get_params():
     a = -0.5
     b = 0.5
@@ -22,17 +25,17 @@ def get_params():
 
 def make_grid(a, b, nx):
     x = np.linspace(a, b, nx)
-    return x;
+    return x
 
 def apply_bc(u):
     u[0] = 3
     u[-1] = 10
-    return u;
+    return u
 
 def init_cond(x):
     u = np.sin(np.pi * x)
     u = apply_bc(u)
-    return u;
+    return u
 
 def build_matrix(nx, r):
     n = nx - 2
@@ -40,13 +43,14 @@ def build_matrix(nx, r):
     ab[0, 1:] = -r
     ab[2, :-1] = -r
     ab[1, :] = 1 + 2 * r
-    return ab;
+    return ab
 
 def build_forcing(u, r):
+    # Dirichlet values at t^(n+1) moved to the rhs (they are constant in time)
     b = u[1:-1].copy()
     b[0] += r * u[0]
     b[-1] += r * u[-1]
-    return b;
+    return b
 
 def solver(ab, u, nt, r):
     history = [u.copy()]
@@ -54,15 +58,15 @@ def solver(ab, u, nt, r):
         b = build_forcing(u, r)
         u[1:-1] = linalg.solve_banded((1,1), ab, b)
         history.append(u.copy())
-    return np.array(history);
+    return np.array(history)
 
-def plot_solution(x, history, steps_to_plot):
+def plot_solution(x, history, steps_to_plot, dt):
     fig, ax = plt.subplots()
     for i in steps_to_plot:
-        ax.plot(x, history[i], label=f"t={i}")
+        ax.plot(x, history[i], label=f"t = {i * dt:.2f}")
     ax.set_xlabel("x")
     ax.set_ylabel("u")
-    ax.grid()  # Abilita la griglia
+    ax.grid()
     ax.legend()
     plt.tight_layout()
     plt.show()
@@ -73,6 +77,4 @@ if __name__ == "__main__":
     x = make_grid(p["a"], p["b"], p["nx"])
     u0 = init_cond(x)
     history = solver(ab, u0, p["nt"], p["r"])
-    plot_solution(x, history, steps_to_plot=[0, 100, 300, 500, 5000])
-
-    
+    plot_solution(x, history, steps_to_plot=[0, 100, 300, 500, 5000], dt=p["dt"])

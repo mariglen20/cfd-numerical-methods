@@ -1,8 +1,10 @@
 from matplotlib import pyplot as plt
-import scipy as sp
 import numpy as np
 from scipy.sparse import lil_matrix
 from scipy.sparse.linalg import spsolve
+
+# 2D Poisson equation: -lap(p) = f with mixed BCs
+# Neumann BCs imposed with a ghost node: p_(-1) = p_(1) - 2 h * dp/dn, eliminated from the 5-point stencil
 
 def get_params():
     Lx = 1
@@ -20,19 +22,29 @@ def make_grid(Lx, Ly, nx, ny):
     y = np.linspace(0, Ly, ny)
 
     X, Y = np.meshgrid(x, y)
-    return X, Y;
+    return X, Y
 
 def forcing(x, y):
-    return np.sin(np.pi * x) * np.cos(np.pi * y);
+    return np.sin(np.pi * x) * np.cos(np.pi * y)
 
 def is_boundary(i, j, nx, ny):
-    return i == 0 or i == nx - 1 or j == 0 or j == ny - 1;
+    return i == 0 or i == nx - 1 or j == 0 or j == ny - 1
 
 def boundary_conditions(i, j, x, y, dx, dy, nx, ny, k, A, b):
-    # Corners
-    if (i == 0 and j == 0) or (i == 0 and j == ny - 1) or (i == nx - 1 and j == 0) or (i == nx - 1 and j == ny - 1):
+    # Upper border (corners included): Dirichlet p(x, Ly) = exp(x)
+    if j == ny - 1:
+        A[k, k] = 1
+        b[k] = np.exp(x)
+    # Right border (lower corner included): Dirichlet p(Lx, y) = 0
+    elif i == nx - 1:
         A[k, k] = 1
         b[k] = 0
+    # Lower-left corner: both Neumann conditions, ghost nodes in x and y
+    elif i == 0 and j == 0:
+        A[k, k] = 2 / dx**2 + 2 / dy**2
+        A[k, k + 1] = -2 / dx**2
+        A[k, k + nx] = -2 / dy**2
+        b[k] = forcing(x, y) - 2 / dx * np.sin(y) - 2 / dy * x**2
     # Left border: Neumann dp/dx = sin(y)
     elif i == 0:
         A[k, k] = 2 / dx**2 + 2 / dy**2
@@ -47,16 +59,8 @@ def boundary_conditions(i, j, x, y, dx, dy, nx, ny, k, A, b):
         A[k, k + 1] = -1 / dx**2
         A[k, k + nx] = -2 / dy**2
         b[k] = forcing(x, 0) - 2 / dy * x**2
-    # Upper border: Dirichlet p(x, Ly) = exp(x)
-    elif j == ny - 1:
-        A[k, k] = 1
-        b[k] = np.exp(x)
-    # Right border: Dirichlet p(Lx, y) = 0
-    elif i == nx - 1:
-        A[k, k] = 1
-        b[k] = 0
 
-    return A, b;
+    return A, b
 
 
 def build_system(nx, ny, dx, dy):
@@ -82,13 +86,13 @@ def build_system(nx, ny, dx, dy):
 
                 b[k] = forcing(x, y)
 
-    return A.tocsr(), b;
+    return A.tocsr(), b
 
 
 def solve_poisson(A, b, nx, ny):
     p_vec = spsolve(A, b)
     p = p_vec.reshape((ny, nx))
-    return p;   
+    return p
 
 def plot_heatmap(p, Lx, Ly):
     plt.figure(figsize=(7, 5))

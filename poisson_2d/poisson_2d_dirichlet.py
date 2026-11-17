@@ -3,13 +3,16 @@ import numpy as np
 from scipy.sparse import lil_matrix
 from scipy.sparse.linalg import spsolve
 
+# 2D Poisson equation: -lap(p) = f on [0, Lx] x [0, Ly], homogeneous Dirichlet BCs
+# 5-point stencil, direct sparse solver
+
 def get_params():
     Lx = 1
     Ly  = 1
     nx = 500
     ny = 500
     dx = Lx / (nx - 1)
-    dy = Ly / (ny - 1) 
+    dy = Ly / (ny - 1)
     return{ "Lx": Lx, "Ly": Ly, "nx": nx, "ny": ny, "dx": dx, "dy": dy}
 
 def make_grid(Lx, Ly, nx, ny):
@@ -17,24 +20,24 @@ def make_grid(Lx, Ly, nx, ny):
     y = np.linspace(0, Ly, ny)
 
     X, Y = np.meshgrid(x, y)
-    return X, Y;
+    return X, Y
 
 def is_boundary(i, j, nx, ny):
-    return i == 0 or i == nx - 1 or j == 0 or j == ny - 1;
+    return i == 0 or i == nx - 1 or j == 0 or j == ny - 1
 
 def forcing(x, y):
     f = np.sin(x * y)
-    return f;
-    
+    return f
+
 def boundary_conditions(i, j, nx, ny, x, y):
     if i == 0:
-        return 0       
+        return 0
     elif i == nx - 1:
-        return 0          
+        return 0
     elif j == 0:
-        return 0              
+        return 0
     elif j == ny - 1:
-        return 0     
+        return 0
 
 def build_system(nx, ny, dx, dy):
     N = nx * ny
@@ -63,12 +66,12 @@ def build_system(nx, ny, dx, dy):
 
                 b[k] = forcing(x, y)
 
-    return A.tocsr(), b;
+    return A.tocsr(), b
 
 def solve_poisson(A, b, nx, ny):
     p_vec = spsolve(A, b)
     p = p_vec.reshape((ny, nx))
-    return p;
+    return p
 
 def plot_heatmap(p, Lx, Ly):
     plt.figure(figsize=(7, 5))

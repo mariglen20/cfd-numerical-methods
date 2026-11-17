@@ -1,10 +1,10 @@
 from matplotlib import pyplot as plt
-import scipy as sp
-import numpy as np 
+import numpy as np
 from matplotlib.animation import FuncAnimation
 from scipy.linalg import solve_banded
 
-# u_t + f(u)_x = nu * u_xx
+# Viscous Burgers equation: u_t + f(u)_x = nu * u_xx, with f(u) = u^2 / 2
+# Semi-implicit (IMEX): explicit numerical flux for convection, implicit Euler for diffusion
 
 def get_space_params():
     L = 1
@@ -19,23 +19,22 @@ def get_time_params():
     return{ "T": T, "CFL": CFL}
 
 def get_dt(CFL, dx, u_max):
-    dt_adapt = CFL * dx / u_max
+    dt_adapt = CFL * dx / u_max         # only the convective limit (diffusion is implicit)
     dt = np.minimum(dt_adapt, 0.01)
-    return dt;
+    return dt
 
 def make_grid(L, nx):
-    return np.linspace(0, L, nx);
+    return np.linspace(0, L, nx)
 
 def apply_bc(u, t):
     u[0] = np.sin(t)
     u[-1] = np.sin(t)
-    return u;
+    return u
 
 def init_cond(x):
-    u = np.zeros(len(x))
     u = np.sin(2 * np.pi * x)
     u = apply_bc(u, 0)
-    return u;
+    return u
 
 def build_matrix(nu, dx, nx, dt):
     r = nu * dt / dx**2
@@ -45,10 +44,10 @@ def build_matrix(nu, dx, nx, dt):
     ab[1, :] = 1 + 2 * r
     ab[0, 1:] = -r
     ab[2, :-1] = -r
-    return ab, r;
+    return ab, r
 
 def flux(u):
-    return 0.5 * u**2;
+    return 0.5 * u**2
 
 def num_flux(uL, uR, dt, dx, scheme = "rusanov"):
     fL = flux(uL)
@@ -63,30 +62,31 @@ def num_flux(uL, uR, dt, dx, scheme = "rusanov"):
         alpha = a**2 * dt / dx
     else:
         raise ValueError(f"Unknown scheme: {scheme}")
-    
+
     F = 0.5 * ( fR + fL - alpha * (uR - uL) )
-    return F;
-                
+    return F
+
 def build_forcing(u, r, dt, t, dx, nx, scheme = "rusanov"):
     F = num_flux(u[:-1], u[1:], dt, dx, scheme)
 
     bc = np.zeros(nx - 2)
-    forcing = u[1:-1] + r * apply_bc(bc, t)  - dt / dx * (F[1:] - F[:-1])
-    return forcing;
+    bc = apply_bc(bc, t)                # boundary values at t^(n+1) moved to the rhs
+    forcing = u[1:-1] + r * bc - dt / dx * (F[1:] - F[:-1])
+    return forcing
 
 
 def solver(u, nu, CFL, T, dx, nx, scheme = "rusanov"):
     history = [u.copy()]
-    times = [0.0]     
+    times = [0.0]
     t = 0
 
     while t < T:
         u_max = np.max(np.abs(u))
-        dt = get_dt(CFL, dx, u_max)    
+        dt = get_dt(CFL, dx, u_max)
         dt = np.minimum(dt, T - t)
 
         t += dt
-        
+
         ab, r = build_matrix(nu, dx, nx, dt)
         b = build_forcing(u, r, dt, t, dx, nx, scheme)
 
@@ -94,7 +94,7 @@ def solver(u, nu, CFL, T, dx, nx, scheme = "rusanov"):
         u = apply_bc(u, t)
 
         history.append(u.copy())
-        times.append(t) 
+        times.append(t)
 
     return np.array(history), np.array(times)
 
@@ -124,7 +124,7 @@ def animate_solution(x, history, times, n_frames=500):
         blit=True
     )
     plt.show()
-    
+
 if __name__ == "__main__":
     p_space = get_space_params()
     p_time = get_time_params()
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     x = make_grid(p_space["L"], p_space["nx"])
     u0 = init_cond(x)
 
-    history, times = solver(u0, p_space["nu"], p_time["CFL"], p_time["T"], 
+    history, times = solver(u0, p_space["nu"], p_time["CFL"], p_time["T"],
                      p_space["dx"], p_space["nx"], scheme = "lax_wendroff")
-    
+
     animate_solution(x, history, times, n_frames=300)

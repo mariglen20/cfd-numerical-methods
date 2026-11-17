@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
 
+# 1D linear advection: u_t + alpha * u_x = 0 (alpha > 0), explicit first order upwind scheme
+
 def get_params():
     a = -2
     b = 2
@@ -12,9 +14,9 @@ def get_params():
     alpha = 1
 
     T = 200
-    r = 0.9
+    r = 0.9                         # CFL number, upwind is stable for r <= 1
     dt = r * dx / alpha
-    nt = int(T / dt) 
+    nt = int(T / dt)
 
     return{
         "a": a, "b": b, "L": L, "nx": nx, "dx": dx,
@@ -23,41 +25,30 @@ def get_params():
 
 def make_grid(a, b, nx):
     x = np.linspace(a, b, nx)
-    return x;
+    return x
 
 def apply_bc(u, t):
     u[0] = np.cos(t)
-    return u;
+    return u
 
 def init_cond(x):
-    u = np.zeros(len(x))
     u = np.sin(x)
     u = apply_bc(u, 0)
-    return u;
+    return u
 
-def explicit_scheme(u, r, dt):
+def explicit_scheme(u, r, t_new):
     u[1:] = (1 - r) * u[1:] + r * u[:-1]
-    u = apply_bc(u, dt)
-    return u;
+    u = apply_bc(u, t_new)          # inflow BC evaluated at t^(n+1)
+    return u
 
 def solver(u, r, nt, dt):
     history = [u.copy()]
     for i in range(nt):
-        u = explicit_scheme(u, r, i * dt)
+        u = explicit_scheme(u, r, (i + 1) * dt)
         history.append(u.copy())
-    return np.array(history);
+    return np.array(history)
 
 
-# def plot_solution(x, history, steps_to_plot, dt):
-#     fig, ax = plt.subplots()
-#     for i in steps_to_plot:
-#         ax.plot(x, history[i], label=f"t = {i * dt:.2f}")
-#     ax.set_xlabel("x")
-#     ax.set_ylabel("u")
-#     ax.grid()
-#     ax.legend()
-#     plt.tight_layout()
-#     plt.show()
 
 def animate_solution(x, history, dt):
     fig, ax = plt.subplots()
@@ -85,5 +76,4 @@ if __name__ == "__main__":
 
     history = solver(u0, p["r"], p["nt"], p["dt"])
 
-    # plot_solution(x, history, steps_to_plot=[0, 100, 300, 500], dt = p["dt"])
     animate_solution(x, history, p["dt"])
