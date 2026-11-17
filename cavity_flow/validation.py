@@ -1,8 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
 
-# Ghia et al. (1982), Re = 100, Table I   (mediane verticali e orizzontali)
-# col = 0 -> position, col = 1 -> value
+# Ghia, Ghia & Shin (1982), Re = 100, Tables I and II (vertical and horizontal centerlines)
+# col = 0 -> position, col = 1 -> velocity
 GHIA_U_RE100 = np.array([
     [0.0000,  0.00000],
     [0.0547, -0.03717],
@@ -45,7 +45,7 @@ GHIA_V_RE100 = np.array([
 
 
 def get_profiles(u, v, grid):
-    """""Getting the coordinates and relatives velcity profiles"""
+    """Returns the centerline profiles u(0.5, y) and v(x, 0.5) with their coordinates."""
     i_mid = grid.Nx // 2
     j_mid = grid.Ny // 2
 
@@ -53,7 +53,11 @@ def get_profiles(u, v, grid):
 
 
 def compute_errors(y, u_profile, x, v_profile):
-    """""Compute the interpolation and the errors"""
+    """
+    Interpolates the solver profiles on the Ghia reference points and computes:
+        RMS error = sqrt( mean(e_i^2) )  -> discrete L2 norm, normalized by the number of points
+        max error = max |e_i|            -> discrete L-infinity norm
+    """
     u_interp = np.interp(GHIA_U_RE100[:, 0], y, u_profile)
     v_interp = np.interp(GHIA_V_RE100[:, 0], x, v_profile)
 
@@ -61,15 +65,15 @@ def compute_errors(y, u_profile, x, v_profile):
     err_v = GHIA_V_RE100[:, 1] - v_interp
 
     return{
-        "u_l2": np.mean(np.sqrt(err_u**2)),
-        "u_linf": np.max(np.abs(err_u)),
-        "v_l2": np.mean(np.sqrt(err_v**2)),
-        "v_linf": np.max(np.abs(err_v))
+        "u_rms": np.sqrt(np.mean(err_u**2)),
+        "u_max": np.max(np.abs(err_u)),
+        "v_rms": np.sqrt(np.mean(err_v**2)),
+        "v_max": np.max(np.abs(err_v))
     }
 
 
 def plot_comparison(u, v, grid, ghia_u=GHIA_U_RE100, ghia_v=GHIA_V_RE100, Re=100):
-    """Plotting the comparison witH Ghia's results"""
+    """Plots the centerline profiles against Ghia's results"""
     y, u_profile, x, v_profile = get_profiles(u, v, grid)
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))

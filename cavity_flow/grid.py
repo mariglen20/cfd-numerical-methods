@@ -11,7 +11,7 @@ class Grid:
     def __post_init__(self):
         self.dx = self.Lx / (self.Nx - 1)
         self.dy = self.Ly / (self.Ny - 1)
-        
+
         self.x = np.linspace(0, self.Lx, self.Nx)
         self.y = np.linspace(0, self.Ly, self.Ny)
 
