@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # 2D linear advection-diffusion: u_t + a * u_x + b * u_y = nu * (u_xx + u_yy)
-# Finite-volume form for convection (upwind/Rusanov numerical flux), centered differences for diffusion
+# Finite-volume form for convection (Rusanov, central or Lax-Wendroff numerical flux), centered differences for diffusion
 
 def get_space_params():
     Lx = 1
@@ -55,23 +55,33 @@ def flux_x(u, a):
 def flux_y(u, b):
     return b * u
 
-def numerical_flux(uL, uR, uD, uU, a, b):
+# Defining numerical fluxes F_(i+1/2, j) and G_(i, j+1/2) for the various conservative schemes
+def numerical_flux(uL, uR, uD, uU, a, b, dx, dy, dt, scheme = "rusanov"):
     fL = flux_x(uL, a)
     fR = flux_x(uR, a)
 
     fD = flux_y(uD, b)
     fU = flux_y(uU, b)
 
-    alpha_x = abs(a)                # for a linear flux Rusanov reduces to first order upwind
-    alpha_y = abs(b)
+    if scheme == "rusanov":
+        alpha_x = abs(a)                # for a linear flux Rusanov reduces to first order upwind
+        alpha_y = abs(b)
+    elif scheme == "central":
+        alpha_x = 0                     # no numerical dissipation, stable here because the cell Peclet number a*dx/nu < 2
+        alpha_y = 0
+    elif scheme == "lax_wendroff":
+        alpha_x = a**2 * dt / dx        # second order, dimension by dimension
+        alpha_y = b**2 * dt / dy
+    else:
+        raise ValueError(f"Unknown scheme: {scheme}")
 
     F = 0.5 * ( (fL + fR) - alpha_x * (uR - uL) )
     G = 0.5 * ( (fD + fU) - alpha_y * (uU - uD) )
 
     return F, G
 
-def explicit_scheme(u, a, b, nu, dt, dx, dy):
-    F, G = numerical_flux(u[:, :-1], u[:, 1:], u[:-1, :], u[1:, :], a, b)
+def explicit_scheme(u, a, b, nu, dt, dx, dy, scheme = "rusanov"):
+    F, G = numerical_flux(u[:, :-1], u[:, 1:], u[:-1, :], u[1:, :], a, b, dx, dy, dt, scheme)
 
     u_new = u.copy()
     u_new[1:-1, 1:-1] = u[1:-1, 1:-1] \
@@ -81,14 +91,16 @@ def explicit_scheme(u, a, b, nu, dt, dx, dy):
         + nu * dt/ dy**2 * (u[2:, 1:-1] - 2*u[1:-1, 1:-1] + u[:-2, 1:-1])
     return u_new
 
-def solver(u, a, b, nu, T, dt, dx, dy, x, y):
+def solver(u, a, b, nu, T, dt, dx, dy, x, y, scheme = "rusanov"):
     history = [u.copy()]
     times = [0.0]
     t = 0
 
+    print(f"Scheme: {scheme}")
+
     while t < T:
         t += dt
-        u = explicit_scheme(u, a, b, nu, dt, dx, dy)
+        u = explicit_scheme(u, a, b, nu, dt, dx, dy, scheme)
         u = apply_bc(u, x, y)
 
         history.append(u.copy())
@@ -135,7 +147,7 @@ if __name__ == "__main__":
     dt = get_dt(p_space["dx"], p_space["dy"], p_space["nu"], p_space["a"], p_space["b"], p_time["CFL"])
 
     history, times = solver(u0, p_space["a"], p_space["b"], p_space["nu"],
-                        p_time["T"], dt, p_space["dx"], p_space["dy"], x, y)
+                        p_time["T"], dt, p_space["dx"], p_space["dy"], x, y, scheme = "rusanov")
 
 
     animate_solution(history, times, p_space["Lx"], p_space["Ly"])
